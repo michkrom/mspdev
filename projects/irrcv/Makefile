@@ -12,7 +12,7 @@
 # the binary flashed on the device after build, use "bin prog".
 
 # Source files, C, C++  and Assembly
-SOURCEC   = main.c
+SOURCEC   = main.c 
 SOURCECPP =
 SOURCEASM =
 

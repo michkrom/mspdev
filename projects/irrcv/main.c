@@ -9,8 +9,7 @@
 
 #include <msp430.h>
 
-#define  LED1      BIT0
-#define  LED2      BIT6
+#define DCO1MHZ
 
 #define  P_DIR     P1DIR
 #define  P_OUT     P1OUT
@@ -60,11 +59,13 @@ __interrupt void timerA()
 {
   timeCountH ++;
   // show that we are alive - wiggle the LED 1 (green)
-  //P1OUT ^= LED_1;
+  // P1OUT ^= LED_1;
 }
 
 
 //------------------------------ IR decoder ----------------------------------
+
+const int IR_BIT_COUNT = 32;    
 
 // times in n*100us
 // start = 1600us
@@ -72,46 +73,35 @@ __interrupt void timerA()
 // short(0) = 400us
 // repeats in ~170ms
 
-unsigned long irCommand;
-int irBitCount;
-long irPreviousEdgeTimeStamp=0; // rounded to next 100us
+volatile unsigned long irCommand;
+volatile int irBitCount;
 
+long irPreviousEdgeTimeStamp=0; // rounded to next 100us
 
 // Port 1 interrupt service routine
 #pragma vector=PORT1_VECTOR
 __interrupt void Port_1(void)
-{   
-  P1OUT ^= LED_1;
-  
+{     
   // protocol timing
   typedef enum { 
-    IR_SYMBOL_START = 16, 
-    IR_SYMBOL_LONG = 8,
-    IR_SYMBOL_SHORT = 4,
+    IR_SYMBOL_START = 2000, 
+    IR_SYMBOL_LONG = 1200,
+    IR_SYMBOL_SHORT = 800,
     IR_SYMBOL_ERROR = 0 } SYMBOL;
-    
-  const int IR_BIT_COUNT = 32;    
-  const int TOLERANCE = 2;
+  const int TOLERANCE = 100;
   
   // measure time from prev rise to this rise
-  long now = (getTimeUs()+50)/100; // in 100us
-  long deltaLong = now - irPreviousEdgeTimeStamp;
+  int now = TAR;
+  int delta = now - irPreviousEdgeTimeStamp;
   irPreviousEdgeTimeStamp = now;
-  
-  // cap delta to 16 signed int
-  int delta;
-  if( deltaLong < 0 || deltaLong > 0x7FFF )
-    delta = 0x7fff;
-  else
-    delta = deltaLong;  
-  
+    
   // classify received symbol based on timing since last edge
   SYMBOL symbol;
   if( delta > IR_SYMBOL_START-TOLERANCE && delta < IR_SYMBOL_START+TOLERANCE )
     symbol = IR_SYMBOL_START;
   else if( delta > IR_SYMBOL_LONG-TOLERANCE && delta < IR_SYMBOL_LONG+TOLERANCE )
     symbol = IR_SYMBOL_LONG;
-  else if( delta > IR_SYMBOL_LONG-TOLERANCE && delta < IR_SYMBOL_LONG+TOLERANCE )
+  else if( delta > IR_SYMBOL_SHORT-TOLERANCE && delta < IR_SYMBOL_SHORT+TOLERANCE )
     symbol = IR_SYMBOL_SHORT;
   else
     symbol = IR_SYMBOL_ERROR;
@@ -124,12 +114,12 @@ __interrupt void Port_1(void)
 	// start interval
 	irBitCount = 0;
 	irCommand = 0;
+	P1OUT |= LED_2;
 	break;
       }
     case IR_SYMBOL_ERROR:
       {
 	irBitCount = IR_BIT_COUNT+1; // mark invalid command
-	P1OUT ^= LED_2;
 	break;
       }
     default: // it's a good bit!
@@ -141,7 +131,7 @@ __interrupt void Port_1(void)
 	  irBitCount ++;
 	  if( symbol == IR_SYMBOL_SHORT )
 	  {
-	    // long interval (bit 1)
+	    // short interval (bit 1)
 	    irCommand |= 1;
 	  }
 	}
@@ -155,10 +145,12 @@ __interrupt void Port_1(void)
   
   if( irBitCount == IR_BIT_COUNT )
   {
+	P1OUT &= ~LED_2;
   }
   
   // P1.3 IFG cleared to enable next interrupt
   P1IFG = 0;
+
 }
 
 
@@ -173,22 +165,36 @@ int main(void) {
 	//Set ACLK to use internal VLO (12 kHz clock)
 	BCSCTL3 |= LFXT1S_2;
 	
-	//BCSCTL1 = CALBC1_1MHZ;    // Set range
-	//DCOCTL = CALDCO_1MHZ;     // Set DCO step and modulation	
-
-	// confugure DCO to 16MHz and use it as SMCLK
-	BCSCTL2 = SELM_0;          // DCO->SCLK, SMCLK
+#ifdef DCO1MHZ
+	// confugure DCO to 1MHz
+	BCSCTL1 = CALBC1_1MHZ;    // Set range
+	DCOCTL = CALDCO_1MHZ;     // Set DCO step and modulation	
+#else
+	// confugure DCO to 16MHz
 	BCSCTL1 = CALBC1_16MHZ;    // Set range
 	DCOCTL = CALDCO_16MHZ;     // Set DCO step and modulation	
-	
+#endif
+
+	BCSCTL2 = SELM_0;          // DCO->SCLK, SMCLK
+
 	//Set TimerA to use auxiliary clock in UP mode
 	//TACTL = TASSEL_1 | MC_1;
-	
+
+#ifndef DCO1MHZ	
 	// configure SMCLK to 2MHz (SCLK/8)
 	BCSCTL2 |= DIVS_3;
+#endif
 	
-	//Set TimerA to SMCLK and CONTINOUS mode and DIV/2 ==> SMCLK/2=1MHz
-	TACTL = TASSEL_2 | MC_2 | ID_1;	
+	// TimerA 
+
+	// to SMCLK and CONTINOUS mode
+	TACTL = TASSEL_2 | MC_2;
+
+#ifndef DCO1MHZ
+	// DIV/2 ==> SMCLK/2=1MHz
+	TACL |= ID_1;	
+#endif
+
 	//Enable the interrupt for TACCR0 match
 	TACCTL0 = CCIE;
 	// Set TACCR0 which also starts the timer.
@@ -198,7 +204,7 @@ int main(void) {
 	P1DIR |= LED_1 | LED_2;
 	P1DIR &= ~IR_IN;
 
-	// set the P1 pin interrupt to be triggered on the falling edge of the IR detector out
+	// set the P1 pin interrupt to be triggered on the edge of the IR detector out
 	P1IE |= IR_IN;
 	// P1IES |= IR_IN; // Falling edge
 	P1IES &= ~IR_IN; // Rising edge
@@ -208,8 +214,14 @@ int main(void) {
 	//WRITE_SR(GIE);
 	__enable_interrupt();
 
-	while(1) {
+	while(1) 
+        {
 		//Loop forever, interrupts take care of the rest
 		//__bis_SR_register(CPUOFF + GIE);
+		if( irBitCount == IR_BIT_COUNT )
+		{
+			irBitCount = 0;
+			P1OUT ^= LED_1;
+		}
 	}
 }
