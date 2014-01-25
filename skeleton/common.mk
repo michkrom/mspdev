@@ -164,8 +164,16 @@ sim: $(TARGET).elf
 	echo "Type 'prog $(TARGET).elf' to load the program in the simulator"
 	$(MSPDEBUG) sim 
 
+debugs:
+	@skill mspdebug
+	@mspdebug rf2500 gdb &
+debug:
+	@msp430-gdb -ex "target remote localhost:2000" $(TARGET).elf
+
 identify:
-	@echo "Device: $(MCU)"
+	@echo "MCU=$(MCU)"
+	@echo "Detecting..."
+	@msp430-identify
 
 package: clean
 	@echo "Packaging source..."
