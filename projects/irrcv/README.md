@@ -1,14 +1,7 @@
-MSP430 Servos Server
+MSP430 IR receiver
 ====================
 
-Simple driver for multiple servos. 
-The servo pulses are generated in the interrupt. The update rate can be in the range of 10-20ms (50-100us).
-The isr generates a puls of 1000-2000us and is driver by 0-255 x 10us variable in the array (one entry per particular servo).
-
-TOOD:
-+ multiple servos control (configurable)
-+ decide if ISR fires with "update period", dynaic adjust (ie next pin update event) or all pulses are generated "polling style"
-+ accept control input over serial port 
+The IR (infra red as in TV remote) receiver decodes a PROTOCOL TracerJet RC codes.
 
 Requirements
 ------------
@@ -40,6 +33,8 @@ following actions:
 
  * listing - Generate assembly source listings from the .c files.
 
- * identify - Identify the attached microcontroller using mspdebug.
+ * identify - Identify the attached microcontroller using mspdebug. add export MCU=msp430xxxxx (whatever the identify return) to bypass id on every build
 
+ * debugs - launch mspdebug
 
+ * debug - laung msp430gdb and connect to the mspdebug
