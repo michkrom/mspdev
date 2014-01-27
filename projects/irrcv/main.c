@@ -9,6 +9,11 @@
 
 #include <msp430.h>
 
+// simple printf
+void simple_print_init();
+void printf(char *, ...);
+
+
 #define DCO1MHZ
 
 #define  P_DIR     P1DIR
@@ -126,14 +131,14 @@ __interrupt void Port_1(void)
 
 	// act on received symbol
 	switch(symbol) {
-	case IR_SYMBOL_START: {
+	case IR_SYMBOL_START: { // start symbol recognized
 		// start interval
 		irBitCount = 0;
 		irCommand = 0;
 		P1OUT &= ~LED_2;
 		break;
 	}
-	case IR_SYMBOL_ERROR: {
+	case IR_SYMBOL_ERROR: { //  unrecognized timing, error!
 		if( irBitCount <= IR_BIT_COUNT )
 		{
 			irBitCount = IR_BIT_COUNT+1; // mark invalid command
@@ -141,14 +146,14 @@ __interrupt void Port_1(void)
 		}
 		break;
 	}
-	default: { // it's a good bit!
+	default: { // it's a good bit - either 0 or 1 !
 		if( irBitCount <= IR_BIT_COUNT )
 		{
 			// shift command and count the bit
 			irCommand <<= 1;
 			irBitCount ++;
-			if( symbol == IR_SYMBOL_SHORT ) {
-				// short interval (bit 1)
+			if( symbol == IR_SYMBOL_LONG ) {
+				// long interval ==> bit=1
 				irCommand |= 1;
 			}
 		}
@@ -200,6 +205,10 @@ int main(void)
 	BCSCTL2 |= DIVS_3;
 #endif
 
+	// initialize serial-out printf support
+	simple_print_init();
+	printf("IR RECEIVER READY\r\n");
+
 	// TimerA
 
 	// to SMCLK and CONTINOUS mode
@@ -230,10 +239,42 @@ int main(void)
 	__enable_interrupt();
 
 	while(1) {
-		//Loop forever, interrupts take care of the rest
-		//__bis_SR_register(CPUOFF + GIE);
+		// loop forever and decode IR codes
 		if( irReceivedCommand != 0 ) {
+			unsigned long tmp = irReceivedCommand;
 			irReceivedCommand = 0;
+
+			unsigned th = tmp >> 16;
+			unsigned tl = tmp & 0xFFFF;
+			printf("%x %x",th,tl);
+//			printf(" %b %b ",th,tl);
+
+			// PROTOCOL TRACERJET's IR decoding
+
+			// power: 0-100 (127?); 128 - off; > 128 dynamic boost (seen 130ish to 228max only)
+			unsigned pwr = th >> 8; 
+			unsigned lr = (th >> 4) & 0xF; // roll: left=15...right=1; neutral=8 (-7..+7)
+			unsigned fb = (th >> 0) & 0xF; // pitch: forward=15..backward=1; neutral=8 (-7..+7)
+
+			// channel 0-A; 2-B; 3-C; (value of 1 missing)
+			unsigned ch =  (tl >> 14) & 0x3; // 2 bits
+    			// trim
+			unsigned trm = (tl >>  8) & 0x3F; // 6 bits
+
+			// 6 bits of 3 first bytes sum (sic!) - kinda checksum (ignores upper 2 bits)
+			unsigned sum = tl & 0xFF;
+			// potentially the 2 upper bits of last byte are .5 ch (for two pushbuttons?)
+			// looks like sbdy did not think right as 2 upper bits of each byte are ignored this way
+
+			// sum computed on 3 bytes then only lower 6 bit retained
+			unsigned sum2 = ((th>>8)+(th&0xFF)+(tl>>8)) & 0x3f;
+
+			printf(" pwr=%i",pwr);
+			printf(" fb=%i lr=%i",fb-8, lr-8);
+			printf(" ch=%i",ch);
+			printf(" trm=%i",trm);
+			printf(" sum=%X %X",sum,sum2);
+			printf("\r\n");
 			P1OUT ^= LED_1;
 		}
 	}

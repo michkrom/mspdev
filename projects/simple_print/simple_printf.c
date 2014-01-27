@@ -1,4 +1,4 @@
-/* Reeusable MSP430 printf() with inline software serial output.
+/* Reeusable MSP430 printf()
  *
  * Description: This printf function was written by oPossum and originally
  *              posted on the 43oh.com forums. For more information on this
@@ -12,12 +12,15 @@
  * Source:  http://www.43oh.com/forum/viewtopic.php?f=10&t=1732
  * Date:    10-17-11
  *
- * Note: Modified by git/michkrom to add inline sput routines for convinience.
+ * Note: Modified by git/michkrom to work with sput.c and added %b
  ******************************************************************************/
  
 #include "stdarg.h"
-#include "sput.h"
- 
+
+void uart_puts(const char*);
+void uart_putc(char);
+
+
 static const unsigned long dv[] = {
 //  4294967296      // 32 bit unsigned max
 		1000000000,// +0
@@ -61,6 +64,7 @@ void printf(char *format, ...)
 	char c;
 	int i;
 	long n;
+	unsigned mask;
  
 	va_list a;
 	va_start(a, format);
@@ -116,7 +120,7 @@ void printf(char *format, ...)
 						uart_putc( (i & mask) ? '1' : '0');
 						mask >>= 1;
 					}
-					break;						
+					break;					
 				case 0: return;
 				default: goto bad_fmt;
 			}
@@ -125,3 +129,56 @@ void printf(char *format, ...)
 	}
 	va_end(a);
 }
+
+
+/*****************************************************************************/
+
+#include "msp430.h"
+
+// TXD on P1.1
+#define TXD BIT1
+// Bit time in "loops" - must be tuned per MCU & clocks. 
+// Here tuned for 9600b @ 1MHz SCLK
+#define BIT_TIME_LOOPS        (220000/9600)
+
+static void bitout(int bit)
+{
+	// set the TX pin to the bit value
+	if( bit )
+		P1OUT |= TXD;
+	else
+		P1OUT &= ~TXD;
+	// wait for bit_time
+	register unsigned i = BIT_TIME_LOOPS;
+	while(i--) 
+		asm(""); // so the loop is not optimized out
+}
+
+void uart_putc(char c)
+{
+	// start bit
+	bitout(0);
+	// shift out 8 bits of data
+	int i = 8;
+	while(i--)
+	{
+		bitout( c & 1 );
+		c >>= 1;
+	}
+	// stop bits
+	bitout(1);
+	// second stop bit (not necessary)
+	// bitout(1);
+}
+
+void uart_puts(const char *str)
+{
+     while(*str != 0) uart_putc(*str++);
+}
+
+void simple_print_init(void)
+{
+     P1DIR |= TXD;
+     bitout(1);
+}
+

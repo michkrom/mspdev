@@ -4,6 +4,7 @@
 # based on code from theNoccyLabs
 #
 # (c) 2013, Broken Bit Labs, Michal Krombholz
+# GPL v2
 #
 # Source files and target binary, define your source files here to have them
 # compiled, and define the target basename. BUILD defines the default build

@@ -45,17 +45,20 @@ int main(void) {
 	initLEDs();
 
 	//Set ACLK to use internal VLO (12 kHz clock)
-	BCSCTL3 |= LFXT1S_2;
+	BCSCTL3 |= LFXT1S_2; 
+	// SMCLK  = MCLK = VLO = 12Khz
+	BCSCTL2 |= SELM_3 + SELS; 
+	// Stop DCO
+	_BIS_SR(SCG1 + SCG0);
 
 	//Set TimerA to use auxiliary clock in UP mode
 	TACTL = TASSEL_1 | MC_1;
 	//Enable the interrupt for TACCR0 match
 	TACCTL0 = CCIE;
 
-	// Set TACCR0 which also starts the timer. At 12 kHz, counting to 12000
-	// should output an LED change every 1 second. Try this out and see how
-	// inaccurate the VLO can be
-	TACCR0 = 300;
+	// Set TACCR0 which also starts the timer. At 12 kHz, counting to 300 
+	// should produce an interrupt 100Hz : 12000/120=100Hz
+	TACCR0 = 120;
 
 	//Enable global interrupts
 	WRITE_SR(GIE);
@@ -74,7 +77,7 @@ char powerLed = 0;
 
 void powerLedsTick()
 {
-  if( ++c1 > 10 )
+  if( ++c1 > 15 )
   {
     c1=0;
     if( powerLed == 0 )
@@ -108,7 +111,7 @@ char cycloLed = 0;
 
 void cycloLedsTick()
 {
-  if( ++c2 > 2 )
+  if( ++c2 > 20 )
   {
     c2=0;
     ++cycloLed;
