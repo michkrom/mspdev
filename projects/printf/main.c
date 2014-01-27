@@ -1,37 +1,25 @@
-/* MSP430 printf() Tests
+/******************************************************************************
+ * Simple software serial UART (TX only).
  *
- * Description: A modified version of the test code for testing oPossum's
- *              tiny printf() function. More information on the printf()
- *              function can be found at the following link.
+ * This code implements putc and puts with purely software bitbanging.
+ * It uses busy loop to do the timing and hence does not use hardware TIMER.
+ * it does require some tuning: the BIT_TIME_LOOPS may need to be adjusted
  *
- *              http://www.43oh.com/forum/viewtopic.php?f=10&t=1732
+ * (c) 2013, Broken Bit Labs, Michal Krombholz
+ * GPL v2
  *
- *              This specific code tests the printf() function using
- *              the hardware UART on the MSP430G2553 with a baud rate
- *              of 9600. Once the character 't' is received, the test
- *              sequence is started.
- *
- *              This code was originally created for "NJC's MSP430
- *              LaunchPad Blog".
- *
- * Author:  Nicholas J. Conn - http://msp430launchpad.com
- * Email:   webmaster at msp430launchpad.com
- * Date:    06-07-12
+ * http://github.com/michkrom/mspdev/projects/printf
  ******************************************************************************/
 
 #include "msp430.h"
 #include "stdarg.h"
 
-// Define flags used by the interrupt routines
-#define TX	BIT0
+#include "sput.h"
 
 // Flag register
 volatile unsigned char FLAGS = 1;
 
-void sendByte(unsigned char);
 void printf(char *, ...);
-void uart_init(void);
-void putc(char c);
 
 int main(void)
 {
@@ -39,11 +27,12 @@ int main(void)
 
 	BCSCTL2 = SELM_0;          // DCO->SCLK, SMCLK
 
-	// confugure DCO to and use it as SMCLK
+	// confugure DCO to 1MHz and use it as SMCLK
 #if DCO16MHZ
+	// the g series does not have this calibrated!
 	BCSCTL1 = CALBC1_16MHZ;    // Set range
 	DCOCTL = CALDCO_16MHZ;     // Set DCO step and modulation	
-#else
+#else // choose 1MHz
 	BCSCTL1 = CALBC1_1MHZ;     // Set range
 	DCOCTL = CALDCO_1MHZ;      // Set DCO step and modulation	
 #endif
@@ -71,10 +60,10 @@ int main(void)
 	}
 
 #else
-                                                                                                                                                                                                                                
+	                                                                                                                                                                                                                                
 
 	// Initialize values to display
-	char *s = "NJC's MSP430 LaunchPad Blog";
+	char *s = "BroBit's simple sput (RS232)";
 	char c = '!';
 	int i = -12345;
 	unsigned u = 4321;

@@ -12,14 +12,12 @@
  * Source:  http://www.43oh.com/forum/viewtopic.php?f=10&t=1732
  * Date:    10-17-11
  *
- * Note: This comment section was written by Nicholas J. Conn on 06-07-2012
- *       for use on NJC's MSP430 LaunchPad Blog.
+ * Note: Modified by git/michkrom to work with sput.c and added %b
  ******************************************************************************/
  
 #include "stdarg.h"
- 
-extern void putc(unsigned);
-extern void puts(char *);
+
+#include "sput.h" 
  
 static const unsigned long dv[] = {
 //  4294967296      // 32 bit unsigned max
@@ -97,13 +95,13 @@ void printf(char *format, ...)
 					puth(i >> 4);
 					puth(i);
 					break;
-				case 'b':// 16 bit bit (not standard)
+				case 'b':// bit output (not standard); 16 bits
 					i = va_arg(a, int);
 					unsigned mask = 0x8000;
 					while(mask)
 					{
 						uart_putc( (i & mask) ? '1' : '0');
-						mask >>=1;
+						mask >>= 1;
 					}
 					break;					
 				case 0: return;

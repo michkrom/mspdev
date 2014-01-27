@@ -48,6 +48,7 @@ void uart_init(void)
 
 bool uart_getc(uint8_t *c)
 {
+     // not implemented
      return false;
 }
 
