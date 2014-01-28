@@ -68,6 +68,14 @@ all: $(BUILD)
 lib: $(TARGET).a
 bin: $(TARGET).elf $(TARGET).hex
 
+# Check if MCU var is set and hence MCU is detected
+mcu:
+ifeq ($(MCU),)
+	echo "ERROR: MCU not defined or programmer not connected."
+	echo $(MCU)
+	exit 1
+endif
+
 # Build library
 $(TARGET).a: $(OBJS)
 	printf "$(HDR_AR) \033[1m%s.a\033[0m: \033[37m%s\033[0m\n" "AR" "$(TARGET)" "$(strip $(OBJS))"
@@ -75,10 +83,6 @@ $(TARGET).a: $(OBJS)
 
 # Build binary
 $(TARGET).elf: $(OBJS)
-ifeq ($(MCU),)
-	echo "ERROR: MCU not defined or programmer not connected."
-	exit 1
-endif
 	printf "$(HDR_LD) \033[1m%s.elf\033[0m: \033[37m%s\033[0m %s\n" "LD" "$(TARGET)" "$(strip $(OBJS))" "$(if $(LIBS),(+$(subst -l,,$(LIBS))),)"
 	$(CC) $(LDFLAGS) $(LIBPATH) -o $(TARGET).elf $(OBJS) $(LIBS) 
 
@@ -89,29 +93,15 @@ listing: $(LSTS)
 	
 # Compile the object files
 %.c.o: %.c
-ifeq ($(MCU),)
-	echo "ERROR: MCU not defined or programmer not connected."
-	echo $(MCU)
-	exit 1
-endif
 	printf "$(HDR_CC) %s\n" "CC" "$@"
 	$(CC) -c $(CFLAGS) $(INCLUDES) -o $@ $<
 
 # Compile the object files
-%.cpp.o: %.cpp
-ifeq ($(MCU),)
-	echo "ERROR: MCU not defined or programmer not connected."
-	echo $(MCU)
-	exit 1
-endif
+%.cpp.o: mcu %.cpp
 	printf "$(HDR_CC) %s\n" "CPP" "$@"
 	$(CC) -c $(CFLAGS) $(INCLUDES) -o $@ $<
 
-%.asm.o: %.asm
-ifeq ($(MCU),)
-	echo "ERROR: MCU not defined or programmer not connected."
-	exit 1
-endif
+%.asm.o: mcu %.asm
 	printf "$(HDR_ASM) %s (%s)\n" "ASM" "$@" "naken"
 	$(NAKENASM) -e -o $@ $<
 
