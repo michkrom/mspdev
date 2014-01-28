@@ -13,23 +13,23 @@
 
 # Source files, C, C++  and Assembly
 SOURCEC   = main.c simple_printf.c
-SOURCECPP =
-SOURCEASM =
+            SOURCECPP =
+                SOURCEASM =
 
 # bin:binary file, lib:library, prog:program device
-BUILD     = bin prog
+                    BUILD     = bin prog
 
 # Target binary without extension.
-TARGET    = code
+                                TARGET    = code
 
 # Include paths, f.ex. -I. -Isome/path
-INCLUDES  =
+                                        INCLUDES  =
 
 # Libraries to link with, f.ex. -lcomm
-LIBS      =
+                                                LIBS      =
 # Specify the lib directories, f.ex. -Llib -Lsome/path
-LIBPATH   = 
+                                                        LIBPATH   =
 
 # If you don't have common.mk for some reason you can manually download it from
 # theNoccyLabs repository at http://sv.noccy.com/mspdev/skeleton/common.mk 
-include ../../skeleton/common.mk
+                                                                include ../../skeleton/common.mk
