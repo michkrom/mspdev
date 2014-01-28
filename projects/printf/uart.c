@@ -7,15 +7,15 @@
  * Initializes the UART for 9600 baud with a RX interrupt
  **/
 void uart_init(void) {
-	P1SEL = BIT1 + BIT2 ;				// P1.1 = RXD, P1.2=TXD
-	P1SEL2 = BIT1 + BIT2 ;				// P1.1 = RXD, P1.2=TXD
+    P1SEL = BIT1 + BIT2 ;				// P1.1 = RXD, P1.2=TXD
+    P1SEL2 = BIT1 + BIT2 ;				// P1.1 = RXD, P1.2=TXD
 
-	UCA0CTL1 |= UCSSEL_1;				// CLK = ACLK
-	UCA0BR0 = 0x03;						// 32kHz/9600 = 3.41
-	UCA0BR1 = 0x00;
-	UCA0MCTL = UCBRS1 + UCBRS0;			// Modulation UCBRSx = 3
-	UCA0CTL1 &= ~UCSWRST;				// **Initialize USCI state machine**
-	IE2 |= UCA0RXIE;					// Enable USCI_A0 RX interrupt
+    UCA0CTL1 |= UCSSEL_1;				// CLK = ACLK
+    UCA0BR0 = 0x03;						// 32kHz/9600 = 3.41
+    UCA0BR1 = 0x00;
+    UCA0MCTL = UCBRS1 + UCBRS0;			// Modulation UCBRSx = 3
+    UCA0CTL1 &= ~UCSWRST;				// **Initialize USCI state machine**
+    IE2 |= UCA0RXIE;					// Enable USCI_A0 RX interrupt
 }
 
 /**
@@ -25,12 +25,12 @@ void uart_init(void) {
  *     LCD display.
  **/
 void puts(char *s) {
-	char c;
+    char c;
 
-	// Loops through each character in string 's'
-	while (c = *s++) {
-		sendByte(c);
-	}
+    // Loops through each character in string 's'
+    while (c = *s++) {
+        sendByte(c);
+    }
 }
 /**
  * puts() is used by printf() to display or send a character. This function
@@ -38,7 +38,7 @@ void puts(char *s) {
  *     out over UART.
  **/
 void putc(unsigned b) {
-	sendByte(b);
+    sendByte(b);
 }
 
 /**
@@ -46,8 +46,8 @@ void putc(unsigned b) {
  **/
 void sendByte(unsigned char byte )
 {
-	while (!(IFG2&UCA0TXIFG));			// USCI_A0 TX buffer ready?
-	UCA0TXBUF = byte;					// TX -> RXed character
+    while (!(IFG2&UCA0TXIFG));			// USCI_A0 TX buffer ready?
+    UCA0TXBUF = byte;					// TX -> RXed character
 }
 
 /**
@@ -56,11 +56,11 @@ void sendByte(unsigned char byte )
 #pragma vector=USCIAB0RX_VECTOR
 __interrupt void USCI0RX_ISR(void)
 {
-	char r = UCA0RXBUF;					// Get the received character
-	if (r == 't')						// 'u' received?
-	{
-		FLAGS |= TX;					// Set flag to transmit data
-		__bic_SR_register_on_exit(LPM3_bits);	// Wake-up CPU
-	}
+    char r = UCA0RXBUF;					// Get the received character
+    if (r == 't')						// 'u' received?
+    {
+        FLAGS |= TX;					// Set flag to transmit data
+        __bic_SR_register_on_exit(LPM3_bits);	// Wake-up CPU
+    }
 }
 

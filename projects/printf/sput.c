@@ -32,58 +32,58 @@
 #define BAUDRATE                 9600
 
 /**
- * Bit time in "loops" - must be tuned per MCU & clocks. 
+ * Bit time in "loops" - must be tuned per MCU & clocks.
  */
 #define BIT_TIME_LOOPS        (220000/BAUDRATE) // 220000 loops per second (@ ~1MHZ SCLK)
 
 void uart_init(void)
 {
 //     P1SEL |= TXD;
-     P1DIR |= TXD;
+    P1DIR |= TXD;
 
-     // P1IES |= RXD;                 // RXD Hi/lo edge interrupt
-     // P1IFG &= ~RXD;                // Clear RXD (flag) before enabling interrupt
-     // P1IE  |= RXD;                 // Enable RXD interrupt
+    // P1IES |= RXD;                 // RXD Hi/lo edge interrupt
+    // P1IFG &= ~RXD;                // Clear RXD (flag) before enabling interrupt
+    // P1IE  |= RXD;                 // Enable RXD interrupt
 }
 
 bool uart_getc(uint8_t *c)
 {
-     // not implemented
-     return false;
+    // not implemented
+    return false;
 }
 
 static void bitout(int bit)
 {
-	// set the TX pin to the bit value
-	if( bit )
-		P1OUT |= TXD;
-	else
-		P1OUT &= ~TXD;
-	// wait for bit_time
-	register unsigned i = BIT_TIME_LOOPS;
-	while(i--) 
-		asm(""); // so the loop is not optimized out
+    // set the TX pin to the bit value
+    if( bit )
+        P1OUT |= TXD;
+    else
+        P1OUT &= ~TXD;
+    // wait for bit_time
+    register unsigned i = BIT_TIME_LOOPS;
+    while(i--)
+        asm(""); // so the loop is not optimized out
 }
 
 void uart_putc(uint8_t c)
 {
-	// start bit
-	bitout(0);
-	// shift out 8 bits of data
-	register int i = 8;
-	while(i--)
-	{
-		bitout( c & 1 );
-		c >>= 1;
-	}
-	// stop bits
-	bitout(1);
-	// second stop bit (not necessary)
-	// bitout(1);
+    // start bit
+    bitout(0);
+    // shift out 8 bits of data
+    register int i = 8;
+    while(i--)
+    {
+        bitout( c & 1 );
+        c >>= 1;
+    }
+    // stop bits
+    bitout(1);
+    // second stop bit (not necessary)
+    // bitout(1);
 }
 
 void uart_puts(const char *str)
 {
-     while(*str != 0) uart_putc(*str++);
+    while(*str != 0) uart_putc(*str++);
 }
 

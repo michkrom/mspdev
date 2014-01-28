@@ -95,50 +95,50 @@ static volatile bool hasReceived = false;
 
 void uart_init(void)
 {
-     P1SEL |= TXD;
-     P1DIR |= TXD;
+    P1SEL |= TXD;
+    P1DIR |= TXD;
 
-     P1IES |= RXD;                 // RXD Hi/lo edge interrupt
-     P1IFG &= ~RXD;                 // Clear RXD (flag) before enabling interrupt
-     P1IE  |= RXD;                 // Enable RXD interrupt
+    P1IES |= RXD;                 // RXD Hi/lo edge interrupt
+    P1IFG &= ~RXD;                 // Clear RXD (flag) before enabling interrupt
+    P1IE  |= RXD;                 // Enable RXD interrupt
 }
 
 bool getc(uint8_t *c)
 {
-     if (!hasReceived) {
-          return false;
-     }
+    if (!hasReceived) {
+        return false;
+    }
 
-     *c = RXByte;
-     hasReceived = false;
+    *c = RXByte;
+    hasReceived = false;
 
-     return true;
+    return true;
 }
 
 void putc(uint8_t c)
 {
-     TXByte = c;
+    TXByte = c;
 
-     while(isReceiving);                                      // Wait for RX completion
+    while(isReceiving);                                      // Wait for RX completion
 
-     CCTL0 = OUT;                                             // TXD Idle as Mark
-     TACTL = TASSEL_2 + MC_2;                                 // SMCLK, continuous mode
+    CCTL0 = OUT;                                             // TXD Idle as Mark
+    TACTL = TASSEL_2 + MC_2;                                 // SMCLK, continuous mode
 
-     bitCount = 0xA;                                          // Load Bit counter, 8 bits + ST/SP
-     CCR0 = TAR;                                              // Initialize compare register
+    bitCount = 0xA;                                          // Load Bit counter, 8 bits + ST/SP
+    CCR0 = TAR;                                              // Initialize compare register
 
-     CCR0 += BIT_TIME;                                        // Set time till first bit
-     TXByte |= 0x100;                                         // Add stop bit to TXByte (which is logical 1)
-     TXByte = TXByte << 1;                                    // Add start bit (which is logical 0)
+    CCR0 += BIT_TIME;                                        // Set time till first bit
+    TXByte |= 0x100;                                         // Add stop bit to TXByte (which is logical 1)
+    TXByte = TXByte << 1;                                    // Add start bit (which is logical 0)
 
-     CCTL0 = CCIS_0 + OUTMOD_0 + CCIE + OUT;  // Set signal, intial value, enable interrupts
+    CCTL0 = CCIS_0 + OUTMOD_0 + CCIE + OUT;  // Set signal, intial value, enable interrupts
 
-     while ( CCTL0 & CCIE );                  // Wait for previous TX completion
+    while ( CCTL0 & CCIE );                  // Wait for previous TX completion
 }
 
 void puts(const char *str)
 {
-     while(*str != 0) putc(*str++);
+    while(*str != 0) putc(*str++);
 }
 
 /**
@@ -147,18 +147,18 @@ void puts(const char *str)
 #pragma vector=PORT1_VECTOR
 __interrupt void PORT1_ISR(void)
 {
-     isReceiving = true;
+    isReceiving = true;
 
-     P1IE &= ~RXD;                            // Disable RXD interrupt
-     P1IFG &= ~RXD;                           // Clear RXD IFG (interrupt flag)
+    P1IE &= ~RXD;                            // Disable RXD interrupt
+    P1IFG &= ~RXD;                           // Clear RXD IFG (interrupt flag)
 
-     TACTL = TASSEL_2 + MC_2;                 // SMCLK, continuous mode
-     CCR0 = TAR;                              // Initialize compare register
-     CCR0 += HALF_BIT_TIME;                   // Set time till first bit
-     CCTL0 = OUTMOD_1 + CCIE;                 // Disable TX and enable interrupts
+    TACTL = TASSEL_2 + MC_2;                 // SMCLK, continuous mode
+    CCR0 = TAR;                              // Initialize compare register
+    CCR0 += HALF_BIT_TIME;                   // Set time till first bit
+    CCTL0 = OUTMOD_1 + CCIE;                 // Disable TX and enable interrupts
 
-     RXByte = 0;                              // Initialize RXByte
-     bitCount = 9;                            // Load Bit counter, 8 bits + start bit
+    RXByte = 0;                              // Initialize RXByte
+    bitCount = 9;                            // Load Bit counter, 8 bits + start bit
 }
 
 /**
@@ -167,46 +167,46 @@ __interrupt void PORT1_ISR(void)
 #pragma vector=TIMER0_A0_VECTOR
 __interrupt void TIMERA_ISR()
 {
-     if(!isReceiving) {
-          CCR0 += BIT_TIME;                                                 // Add Offset to CCR0
-          if ( bitCount == 0) {                                         // If all bits TXed
-               TACTL = TASSEL_2;                                         // SMCLK, timer off (for power consumption)
-               CCTL0 &= ~ CCIE ;                                         // Disable interrupt
-          } else {
-               if (TXByte & 0x01) {
-                    CCTL0 = ((CCTL0 & ~OUTMOD_7 ) | OUTMOD_1);  //OUTMOD_7 defines the 'window' of the field.
-               } else {
-                    CCTL0 = ((CCTL0 & ~OUTMOD_7 ) | OUTMOD_5);  //OUTMOD_7 defines the 'window' of the field.
-               }
+    if(!isReceiving) {
+        CCR0 += BIT_TIME;                                                 // Add Offset to CCR0
+        if ( bitCount == 0) {                                         // If all bits TXed
+            TACTL = TASSEL_2;                                         // SMCLK, timer off (for power consumption)
+            CCTL0 &= ~ CCIE ;                                         // Disable interrupt
+        } else {
+            if (TXByte & 0x01) {
+                CCTL0 = ((CCTL0 & ~OUTMOD_7 ) | OUTMOD_1);  //OUTMOD_7 defines the 'window' of the field.
+            } else {
+                CCTL0 = ((CCTL0 & ~OUTMOD_7 ) | OUTMOD_5);  //OUTMOD_7 defines the 'window' of the field.
+            }
 
-               TXByte = TXByte >> 1;
-               bitCount --;
-          }
-     } else {
-          CCR0 += BIT_TIME;                                                 // Add Offset to CCR0
+            TXByte = TXByte >> 1;
+            bitCount --;
+        }
+    } else {
+        CCR0 += BIT_TIME;                                                 // Add Offset to CCR0
 
-          if ( bitCount == 0) {
+        if ( bitCount == 0) {
 
-               TACTL = TASSEL_2;                                         // SMCLK, timer off (for power consumption)
-               CCTL0 &= ~ CCIE ;                                         // Disable interrupt
+            TACTL = TASSEL_2;                                         // SMCLK, timer off (for power consumption)
+            CCTL0 &= ~ CCIE ;                                         // Disable interrupt
 
-               isReceiving = false;
+            isReceiving = false;
 
-               P1IFG &= ~RXD;                                                 // clear RXD IFG (interrupt flag)
-               P1IE |= RXD;                                                 // enabled RXD interrupt
+            P1IFG &= ~RXD;                                                 // clear RXD IFG (interrupt flag)
+            P1IE |= RXD;                                                 // enabled RXD interrupt
 
-               if ( (RXByte & 0x201) == 0x200) {         // Validate the start and stop bits are correct
-                    RXByte = RXByte >> 1;                         // Remove start bit
-                    RXByte &= 0xFF;                                 // Remove stop bit
-                    hasReceived = true;
-               }
-          } else {
-               if ( (P1IN & RXD) == RXD) {                 // If bit is set?
-                    RXByte |= 0x400;                                 // Set the value in the RXByte
-               }
-               RXByte = RXByte >> 1;                                 // Shift the bits down
-               bitCount --;
-          }
-     }
+            if ( (RXByte & 0x201) == 0x200) {         // Validate the start and stop bits are correct
+                RXByte = RXByte >> 1;                         // Remove start bit
+                RXByte &= 0xFF;                                 // Remove stop bit
+                hasReceived = true;
+            }
+        } else {
+            if ( (P1IN & RXD) == RXD) {                 // If bit is set?
+                RXByte |= 0x400;                                 // Set the value in the RXByte
+            }
+            RXByte = RXByte >> 1;                                 // Shift the bits down
+            bitCount --;
+        }
+    }
 }
 
