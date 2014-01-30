@@ -24,7 +24,7 @@ void printf(char *, ...);
 
 // Outputs, this is led 1 and 2 on the Launchpad
 #define LED_1 BIT6 // port1.0 is our trigger led
-#define LED_2 BIT0 // port1.6 is our status led	
+#define LED_2 BIT0 // port1.6 is our status led
 
 
 //-------------------------- TIMER and TIMEBASE -------------------------------
@@ -71,23 +71,36 @@ __interrupt void timerA()
 
 volatile unsigned long irReceivedCommand;
 
-// start symbol + 32bit, IR burst is fixed @ 200us, space variable as per below
-// symbol times
-// start = 1600us
-// long(0) = 800us
-// short(1) = 400us
-// repeats in ~170ms
 
-// the symbols are timed from edge of IR to next edge of IR
-// the timing is using just timer A counter (TAR 16bit@1us)
-// the alg hinges on receiving and recognizing correct start signal
-// but since TAR wraps around (every ~65.5ms) it is not ideal
-// a possibility exist that wrapping would produce a delta time matching start by chance
-// ideally I would use longer counter or reset TAR everytime IR is received
-// another problem is when the train of symbols (bits) is not finished the alg
-// would not know about it and could potentially join two separate trains (commands)
-// again it is a (small) possiblity as the wrapping of timer may end up being a valid time delta
-// ideally I would time out on receiving remaining bits and restart to wait for next start
+// "Protocol TracerJet Heli" RC remote protocol description.
+//
+// The remote pulses IR (@38kHz carrier) for a variable time of 400us
+// the time between IR bursts is used to mean one of 3 SYMBOLs:
+// START, LONG and SHORT.
+// The command consist of sequence of 500us burst then START then 32 bits of data.
+// the gap between IR bursts is 400us
+// the gap between commands is about ~170ms
+//
+// start symbol + 32bit, IR burst off time is 400us
+// symbol times from edge of IR to next edge of IR
+// start    = 2000us
+// long(1)  = 1200us
+// short(0) =  800us
+//
+// Detection Algorithm
+//
+// The symbols are timed from falling edge of IR to the next fallling edge of IR (ie end of burst).
+// However since the IR detector uses "0" level as "active" (ie IR present)
+// the pin interrupts as active on "rising" edge of detector signal.
+// The algoritm looks for the START symbol, and then expects the bits to follow.
+// The first 500us burst is only used to time next symbol (ie START symbol).
+// However, the alg is not perfect as it hinges on receiving and recognizing correct START symbol.
+// A possibility exist that wrapping of time ticks would produce a delta time matching start by chance.
+// This is however rather unlikely (more unlikely when timer wraparound is rare/longer).
+// Also, the alg has no build in timeout and when not all bits are received in one IR command
+// (due to interference) it will continue to read bits of next one and eventually err (too many bits).
+// Hence it will faile receiving both commands (bad one and next potentially good one).
+//
 
 // Port 1 interrupt service routine
 #pragma vector=PORT1_VECTOR
@@ -247,7 +260,7 @@ int main(void)
             unsigned th = tmp >> 16;
             unsigned tl = tmp & 0xFFFF;
             printf("%x %x",th,tl);
-//			printf(" %b %b ",th,tl);
+//          printf(" %b %b ",th,tl);
 
             // PROTOCOL TRACERJET's IR decoding
 
